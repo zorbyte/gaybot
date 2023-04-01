@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.base",
+  "compilerOptions": {
+    "lib": ["esnext"],
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+  },
+  "include": [
+    ".eslintrc.cjs",
+    ".prettierrc.cjs",
+    "src/**/*",
+    "static/ts/**/*",
+    "shims/**/*",
+    "tsconfig.json"
+  ]
+}

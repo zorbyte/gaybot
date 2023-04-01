@@ -1,0 +1,6 @@
+.env
+.vscode/*
+!.vscode/extensions.json
+dist
+node_modules
+# .husky - not sure if this is a good idea
