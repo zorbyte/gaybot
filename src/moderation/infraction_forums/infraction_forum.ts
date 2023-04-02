@@ -10,6 +10,8 @@ import { Column, DataSource, Entity, PrimaryColumn } from "typeorm";
 
 import { Punishment, PUNISHMENT_EMOJIS } from "../punishment.js";
 
+import { InfractionForumErrors } from "./errors.js";
+
 @Entity()
 export class InfractionForum {
   @PrimaryColumn()
@@ -28,23 +30,17 @@ export async function getInfractionForum(guildId: Snowflake) {
   const config = await forums.findOneBy({ guildId });
 
   if (config === null) {
-    throw new Error(
-      `No infractions forum configured for guild (\`${guildId}\`)`
-    );
+    throw new InfractionForumErrors.NoChannelConfigured(guildId);
   }
 
   const channel = await client.channels.fetch(config.forumId);
   if (channel === null) {
-    throw new Error(
-      `Could not find channel (\`${config.forumId}\`) for guild (\`${guildId}\`) infractions forum.`
-    );
+    throw new InfractionForumErrors.ChannelNotFound(guildId, config.forumId);
   }
 
   const guildChannel = await channel.fetch();
   if (guildChannel.type !== ChannelType.GuildForum) {
-    throw new Error(
-      `Channel (\`${config.forumId}\`) in guild (\`${guildId}\`) is not a forum.`
-    );
+    throw new InfractionForumErrors.NotAForum(guildId, guildChannel.id);
   }
 
   return guildChannel;
@@ -112,9 +108,7 @@ export function getForumTagIdByPunishment(
   )?.id;
 
   if (typeof tag === "undefined") {
-    throw new Error(
-      `Tag for punishment (\`${punishment}\`) not found in forum (\`${forum.id}\`)`
-    );
+    throw new InfractionForumErrors.TagNotFound(forum.id, punishment);
   }
 
   return tag;

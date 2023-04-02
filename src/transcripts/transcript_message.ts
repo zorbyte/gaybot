@@ -8,6 +8,9 @@ export class TranscriptMessage {
   @PrimaryColumn()
   messageId!: Snowflake;
 
+  @Column()
+  channelId!: Snowflake;
+
   @Column({ default: false })
   edited!: boolean;
 

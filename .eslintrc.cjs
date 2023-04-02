@@ -20,6 +20,7 @@ module.exports = {
   plugins: ["@typescript-eslint", "prettier", "simple-import-sort"],
   rules: {
     "prettier/prettier": "error",
+    "@typescript-eslint/no-namespace": "off",
     "@typescript-eslint/no-non-null-assertion": "off",
     "@typescript-eslint/explicit-module-boundary-types": "off",
     "@typescript-eslint/no-unsafe-assignment": "off",
