@@ -1,3 +1,1 @@
-export class CommandBuilder<Args = {}> {
-  
-}
+export class CommandBuilder<Args = Record<string, unknown>> {}

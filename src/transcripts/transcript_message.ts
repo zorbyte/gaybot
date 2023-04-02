@@ -1,12 +1,12 @@
-import { Snowflake } from "discord.js";
+import type { Snowflake } from "discord.js";
 import { Column, Entity, ManyToOne, PrimaryColumn } from "typeorm";
 
-import { Ticket } from "../tickets/ticket.entity.js";
+import { Transcript } from "./transcript.js";
 
 @Entity()
 export class TranscriptMessage {
   @PrimaryColumn()
-  id!: Snowflake;
+  messageId!: Snowflake;
 
   @Column({ default: false })
   edited!: boolean;
@@ -26,6 +26,6 @@ export class TranscriptMessage {
   @Column({ nullable: true })
   redactionComment?: this["redacted"] extends true ? string : void;
 
-  @ManyToOne(() => Ticket, ticket => ticket.transcript)
-  ticket!: Ticket;
+  @ManyToOne(() => Transcript, transcript => transcript.messages)
+  transcript!: Transcript;
 }

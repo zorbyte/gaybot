@@ -1,21 +1,10 @@
-import {
-  Client,
-  EmbedBuilder,
-  ForumChannel,
-  Snowflake,
-  User,
-} from "discord.js";
+import { Client, EmbedBuilder, Snowflake, User } from "discord.js";
+import ms from "ms";
 import { Container } from "typedi";
-import { Column, Entity, OneToMany, PrimaryColumn } from "typeorm";
+import { DataSource, Entity, OneToMany, PrimaryColumn } from "typeorm";
 
-import { type CreateInfractionOpts } from "../infractions/create.js";
-import { Infraction } from "../infractions/infraction.entity.js";
-import { InfractionSource } from "../infractions/source.js";
-import {
-  PAST_TENSE_PUNISHMENT_VERBS,
-  PUNISHMENT_EMOJIS,
-  PUNISHMENT_NOUNS,
-} from "../punishment.js";
+import { Infraction, UnsavedInfraction } from "../infractions/infraction.js";
+import { getPunishmentUIElements, Punishment } from "../punishment.js";
 
 import {
   getForumTagIdByPunishment,
@@ -25,57 +14,97 @@ import {
 @Entity()
 export class InfractionForumPost {
   @PrimaryColumn()
-  postId!: Snowflake;
+  threadId!: Snowflake;
 
-  /** User ID of the target */
-  @Column()
-  targetId!: Snowflake;
-
-  @OneToMany(() => Infraction, inf => inf.forumEntry)
+  @OneToMany(() => Infraction, inf => inf.forumPost)
   infractions!: Infraction[];
 }
 
+const source = Container.get(DataSource);
+const posts = source.getRepository(InfractionForumPost);
+
 const client = Container.get(Client);
 
-type CreatePostOpts = CreateInfractionOpts;
+type InfractionWithForumPost = UnsavedInfraction &
+  Required<Pick<UnsavedInfraction, "forumPost">>;
 
-export async function createPost(opts: CreatePostOpts) {
-  const forum = await getInfractionForum(opts.guildId);
+export async function createPost(infraction: UnsavedInfraction) {
+  const thread = await createThread(infraction);
+  const post = posts.create();
 
-  const targetUser = await client.users.fetch(opts.targetId);
+  post.threadId = thread.id;
+  post.infractions = [infraction as InfractionWithForumPost];
 
-  const emoji = PUNISHMENT_EMOJIS[opts.punishment];
-  const noun = PUNISHMENT_NOUNS[opts.punishment];
-  const verb = PAST_TENSE_PUNISHMENT_VERBS[opts.punishment];
-  let postName = `${targetUser.tag} (${targetUser.id}) was ${verb}`;
+  return post;
+}
 
-  let actor =
-    opts.source === InfractionSource.AUTO_MOD
-      ? "Auto Moderator"
-      : opts.source === InfractionSource.GAYBOT
-      ? "GayBot Auto Moderator"
-      : "";
+async function createThread(infraction: UnsavedInfraction) {
+  const forum = await getInfractionForum(infraction.guildId);
+  const moderatorUser = await client.users.fetch(infraction.moderator.id);
+  const targetUser = await client.users.fetch(infraction.target.id);
 
-  let moderatorUser: User | undefined;
-  if (typeof opts.moderatorId !== "undefined") {
-    moderatorUser = await client.users.fetch(opts.moderatorId);
-    postName += ` by ${moderatorUser.tag} (${opts.moderatorId})`;
-    actor = `${moderatorUser.tag} (ID \`${opts.moderatorId}\`)`;
-  }
+  // let actor =
+  //   opts.source === InfractionSource.AUTO_MOD
+  //     ? "Auto Moderator"
+  //     : opts.source === InfractionSource.GAYBOT
+  //     ? "GayBot Auto Moderator"
+  //     : "";
+
+  // let moderatorUser: User | undefined;
+  // if (typeof opts.moderatorId !== "undefined") {
+  //   moderatorUser = await client.users.fetch(opts.moderatorId);
+  //   actor = `${moderatorUser.tag} (ID \`${opts.moderatorId}\`)`;
+  // }
+
+  const { emoji, pastTenseVerb } = getPunishmentUIElements(
+    infraction.punishment
+  );
 
   const thread = await forum.threads.create({
-    name: postName,
+    name: createPostName(infraction.punishment, targetUser, moderatorUser),
     message: {
       embeds: [
-        {
-          title: postName,
-          description:
-            `:hammer: **Punishment:** ${emoji} ${noun} (ID \`${opts.punishment}\`)\n` +
-            `:page_facing_up: **Reason:** ${opts.reason}\n` +
-            `:bust_in_silhouette: **Actor:** ${actor}\n`,
-        },
+        new EmbedBuilder()
+          .setAuthor({
+            name: `${moderatorUser.tag} (ID ${moderatorUser.id})`,
+            iconURL:
+              moderatorUser.avatarURL({ forceStatic: true, size: 16 }) ??
+              void 0,
+          })
+          .setThumbnail(targetUser.avatarURL({ size: 128 }))
+          .setDescription(
+            `${emoji} **${pastTenseVerb}** ${targetUser.tag} (ID \`${targetUser.id}\`)` +
+              `:page_facing_up: **Reason:** ${infraction.reason}`
+          )
+          .setFooter({
+            text: `ID: ${infraction.id}${
+              typeof infraction.duration !== "undefined"
+                ? `| Duration: ${ms(infraction.duration, { long: true })}`
+                : ""
+            }`,
+          }),
       ],
+      components: [],
     },
-    appliedTags: [getForumTagIdByPunishment(forum, opts.punishment)],
+    appliedTags: [getForumTagIdByPunishment(forum, infraction.punishment)],
   });
+
+  return thread;
+}
+
+function createPostName(
+  punishment: Punishment,
+  targetUser: User,
+  moderatorUser: User
+): string {
+  const { pastTenseVerb } = getPunishmentUIElements(punishment);
+
+  let postName = `${targetUser.tag} (${
+    targetUser.id
+  }) was ${pastTenseVerb.toLowerCase()}`;
+  if (typeof moderatorUser !== "undefined") {
+    postName += ` by ${moderatorUser.tag} (${moderatorUser.id})`;
+  }
+
+  return postName;
 }

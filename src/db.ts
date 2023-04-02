@@ -1,10 +1,10 @@
 import { Container } from "typedi";
 import { DataSource } from "typeorm";
 
-import { Member } from "./members/member.entity.js";
-import { Infraction } from "./moderation/infractions/infraction.entity.js";
-import { Ticket } from "./tickets/ticket.entity.js";
-import { TranscriptMessage } from "./transcripts/transcript_message.entity.js";
+import { Infraction } from "./moderation/infractions/infraction.js";
+import { Ticket } from "./tickets/ticket.js";
+import { TranscriptMessage } from "./transcripts/transcript_message.js";
+import { Member } from "./member.js";
 
 const source = new DataSource({
   type: "postgres",

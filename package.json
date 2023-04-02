@@ -25,6 +25,7 @@
     "debug": "^4.3.4",
     "discord.js": "^14.8.0",
     "dotenv": "^16.0.3",
+    "ms": "github:khmm12/ms#fix/types-in-conditional-exports",
     "nanoid": "^4.0.2",
     "pg": "^8.10.0",
     "reflect-metadata": "^0.1.13",

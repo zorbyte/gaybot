@@ -2,7 +2,7 @@ import d from "debug";
 import { Client, Events, GatewayIntentBits } from "discord.js";
 import { Container } from "typedi";
 
-import { initDB } from "./init_db.js";
+import { initDB } from "./db.js";
 
 const debug = d("gaybot");
 

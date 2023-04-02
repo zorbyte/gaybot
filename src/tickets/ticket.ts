@@ -1,14 +1,15 @@
 import {
   Column,
   Entity,
+  JoinColumn,
   JoinTable,
   ManyToMany,
-  OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
 
-import { Member } from "../members/member.entity.js";
-import { TranscriptMessage } from "../transcripts/transcript_message.entity.js";
+import { Member } from "../member.js";
+import { Transcript } from "../transcripts/transcript.js";
 
 @Entity()
 export class Ticket {
@@ -21,8 +22,9 @@ export class Ticket {
   @Column({ nullable: true })
   expiry?: Date;
 
-  @OneToMany(() => TranscriptMessage, msg => msg.ticket)
-  transcript!: TranscriptMessage[];
+  @OneToOne(() => Transcript)
+  @JoinColumn()
+  transcript!: Transcript;
 
   @ManyToMany(() => Member, member => member.tickets)
   @JoinTable()

@@ -1,29 +1,29 @@
 export enum Punishment {
-  BAN,
-  KICK,
-  MUTE,
-  TIMEOUT,
+  Ban,
+  Kick,
+  Mute,
+  Timeout,
 }
 
 export const PUNISHMENT_EMOJIS: Record<Punishment, string> = {
-  [Punishment.BAN]: "🔨",
-  [Punishment.KICK]: "👢",
-  [Punishment.MUTE]: "🔇",
-  [Punishment.TIMEOUT]: "💤",
+  [Punishment.Ban]: "🔨",
+  [Punishment.Kick]: "👢",
+  [Punishment.Mute]: "🔇",
+  [Punishment.Timeout]: "💤",
 };
 
 export const PUNISHMENT_NOUNS: Record<Punishment, string> = {
-  [Punishment.BAN]: "Ban",
-  [Punishment.KICK]: "Kick",
-  [Punishment.MUTE]: "Mute",
-  [Punishment.TIMEOUT]: "Timeout",
+  [Punishment.Ban]: "Ban",
+  [Punishment.Kick]: "Kick",
+  [Punishment.Mute]: "Mute",
+  [Punishment.Timeout]: "Timeout",
 };
 
 export const PAST_TENSE_PUNISHMENT_VERBS: Record<Punishment, string> = {
-  [Punishment.BAN]: "banned",
-  [Punishment.KICK]: "kicked",
-  [Punishment.MUTE]: "muted",
-  [Punishment.TIMEOUT]: "timed out",
+  [Punishment.Ban]: "Banned",
+  [Punishment.Kick]: "Kicked",
+  [Punishment.Mute]: "Muted",
+  [Punishment.Timeout]: "Timed out",
 };
 
 export function getPunishmentUIElements(punishment: Punishment) {

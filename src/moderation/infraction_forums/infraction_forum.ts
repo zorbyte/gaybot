@@ -11,7 +11,7 @@ import { Column, DataSource, Entity, PrimaryColumn } from "typeorm";
 import { Punishment, PUNISHMENT_EMOJIS } from "../punishment.js";
 
 @Entity()
-export class InfractionForumConfig {
+export class InfractionForum {
   @PrimaryColumn()
   guildId!: Snowflake;
 
@@ -20,12 +20,12 @@ export class InfractionForumConfig {
 }
 
 const source = Container.get(DataSource);
-const configs = source.getRepository(InfractionForumConfig);
+const forums = source.getRepository(InfractionForum);
 
 const client = Container.get(Client);
 
 export async function getInfractionForum(guildId: Snowflake) {
-  const config = await configs.findOneBy({ guildId });
+  const config = await forums.findOneBy({ guildId });
 
   if (config === null) {
     throw new Error(
@@ -51,11 +51,11 @@ export async function getInfractionForum(guildId: Snowflake) {
 }
 
 const DEFAULT_TAGS: GuildForumTagData[] = [
-  createForumTagData(PUNISHMENT_EMOJIS[Punishment.BAN], "Punishment: Ban"),
-  createForumTagData(PUNISHMENT_EMOJIS[Punishment.KICK], "Punishment: Kick"),
-  createForumTagData(PUNISHMENT_EMOJIS[Punishment.MUTE], "Punishment: Mute"),
+  createForumTagData(PUNISHMENT_EMOJIS[Punishment.Ban], "Punishment: Ban"),
+  createForumTagData(PUNISHMENT_EMOJIS[Punishment.Kick], "Punishment: Kick"),
+  createForumTagData(PUNISHMENT_EMOJIS[Punishment.Mute], "Punishment: Mute"),
   createForumTagData(
-    PUNISHMENT_EMOJIS[Punishment.TIMEOUT],
+    PUNISHMENT_EMOJIS[Punishment.Timeout],
     "Punishment: Timeout"
   ),
   createForumTagData("✅", "Status: Resolved"),
@@ -94,10 +94,10 @@ function createForumTagData(emoji: string, name: string): GuildForumTagData {
 }
 
 const punishmentTags: Record<Punishment, GuildForumTagData> = {
-  [Punishment.BAN]: DEFAULT_TAGS[0],
-  [Punishment.KICK]: DEFAULT_TAGS[1],
-  [Punishment.MUTE]: DEFAULT_TAGS[2],
-  [Punishment.TIMEOUT]: DEFAULT_TAGS[3],
+  [Punishment.Ban]: DEFAULT_TAGS[0],
+  [Punishment.Kick]: DEFAULT_TAGS[1],
+  [Punishment.Mute]: DEFAULT_TAGS[2],
+  [Punishment.Timeout]: DEFAULT_TAGS[3],
 };
 
 export function getForumTagIdByPunishment(
