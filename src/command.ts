@@ -11,6 +11,7 @@ import {
 export interface GaybotCommand {
   parent?: SlashCommandBuilder | SlashCommandSubcommandGroupBuilder;
   builder:
+    | Omit<SlashCommandBuilder, "addSubcommand" | "addSubcommandGroup">
     | SlashCommandBuilder
     | ContextMenuCommandBuilder
     | SlashCommandSubcommandGroupBuilder

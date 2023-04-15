@@ -1,4 +1,4 @@
-import { Client, Snowflake } from "discord.js";
+import { Snowflake } from "discord.js";
 import { nanoid } from "nanoid/async";
 import { Container } from "typedi";
 import {
@@ -43,12 +43,6 @@ export class Infraction {
   @Column()
   reason!: string;
 
-  @Column({ nullable: true })
-  expiry?: Date;
-
-  // The duration, on which the expiry is generated off.
-  duration?: number;
-
   @Column({
     enumName: "source",
     enum: [
@@ -61,6 +55,17 @@ export class Infraction {
   })
   source: InfractionSource = InfractionSource.User;
 
+  @Column({ nullable: true })
+  duration?: number;
+
+  get expiry() {
+    if (typeof this.duration === "undefined") return void 0;
+    return new Date(this.createdAt.getTime() + this.duration);
+  }
+
+  @Column({ nullable: true })
+  evidenceUrl?: string;
+
   // In future when we add audit log support, the nullable
   // functionality of this will be used.
   @OneToOne(() => Member, { nullable: true })
@@ -70,6 +75,9 @@ export class Infraction {
   @OneToMany(() => Member, member => member.infractions)
   @JoinColumn()
   target!: Member;
+
+  @Column({ nullable: true })
+  removedRoles?: Snowflake[];
 
   @OneToOne(() => Transcript, { nullable: true })
   @JoinColumn()
@@ -81,6 +89,9 @@ export class Infraction {
 
   @ManyToOne(() => InfractionForumPost, e => e.infractions)
   forumPost!: InfractionForumPost;
+
+  @Column()
+  createdAt!: Date;
 }
 
 export type UnsavedInfraction = Partial<Infraction> &
@@ -94,27 +105,32 @@ export type UnsavedInfraction = Partial<Infraction> &
       | "source"
       | "moderator"
       | "target"
+      | "expiry"
+      | "createdAt"
     >
   >;
 
 export interface CreateInfractionOpts {
-  punishment: Punishment;
-
-  // source: InfractionSource;
-
   guildId: Snowflake;
 
-  targetId: Snowflake;
-  moderatorId: Snowflake;
-
+  punishment: Punishment;
   reason: string;
+  source?: InfractionSource; // TODO: Implement this feature.
   duration?: number;
+  evidenceUrl?: string;
+
+  moderatorId: Snowflake;
+  targetId: Snowflake;
+
+  removedRoles?: Snowflake[];
+
+  ticket?: Ticket;
+
+  createdAt: Date;
 }
 
 const source = Container.get(DataSource);
 const infractions = source.getRepository(Infraction);
-
-const client = Container.get(Client);
 
 export async function createInfraction(opts: CreateInfractionOpts) {
   const inf = infractions.create();
@@ -125,16 +141,19 @@ export async function createInfraction(opts: CreateInfractionOpts) {
   inf.reason = opts.reason;
 
   inf.duration = opts.duration;
-  inf.expiry =
-    typeof opts.duration !== "undefined"
-      ? new Date(Date.now() + opts.duration)
-      : void 0;
 
   inf.source = InfractionSource.User;
   inf.moderator = await findOrCreateMember(opts.moderatorId, opts.guildId);
   inf.target = await findOrCreateMember(opts.targetId, opts.guildId);
 
+  inf.createdAt = opts.createdAt;
+
+  inf.ticket = opts.ticket;
+
   // TODO: Handle transcripts here.
+  // This will be done by collecting all the messages the user sent in the guild within the last hour.
 
   inf.forumPost = await createPost(inf);
+
+  return inf;
 }

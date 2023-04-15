@@ -1,15 +1,11 @@
-import { Client, EmbedBuilder, Snowflake, User } from "discord.js";
-import ms from "ms";
+import { Snowflake } from "discord.js";
 import { Container } from "typedi";
-import { Column, DataSource, Entity, OneToMany, PrimaryColumn } from "typeorm";
+import { DataSource, Entity, OneToMany, PrimaryColumn } from "typeorm";
 
 import { Infraction, UnsavedInfraction } from "../infractions/infraction.js";
-import { getPunishmentUIElements, Punishment } from "../punishment.js";
 
-import {
-  getForumTagIdByPunishment,
-  getInfractionForum,
-} from "./infraction_forum.js";
+import { InfractionForumErrors } from "./errors.js";
+import { createThread } from "./infraction_forum.js";
 
 @Entity()
 export class InfractionForumPost {
@@ -23,24 +19,31 @@ export class InfractionForumPost {
 const source = Container.get(DataSource);
 const posts = source.getRepository(InfractionForumPost);
 
-const client = Container.get(Client);
-
 type InfractionWithForumPost = UnsavedInfraction &
   Required<Pick<UnsavedInfraction, "forumPost">>;
 
-export async function getInfractionForumPost(threadId: Snowflake) {
-  return posts.findOne({
-    where: { threadId: threadId },
-    relations: {
-      infractions: true,
-    },
-  });
+export async function getInfractionsFromPost(
+  threadId: Snowflake
+): Promise<Infraction[]> {
+  const infracs = (
+    await posts.findOne({
+      select: { infractions: true },
+      where: { threadId },
+      relations: { infractions: true },
+    })
+  )?.infractions;
+
+  if (typeof infracs === "undefined") {
+    throw new InfractionForumErrors.PostNotInDatabase(threadId);
+  }
+
+  return infracs;
 }
 
 export async function findPostsByInfractionIds(infractionIds: Snowflake[]) {
   const found = await posts
     .createQueryBuilder("post")
-    .leftJoinAndSelect("post.infractions", "inf")
+    .innerJoinAndSelect("post.infractions", "i")
     .where(
       qb =>
         // This gets the post IDs that are on the infractions whose IDs are
@@ -76,65 +79,11 @@ export async function createPost(infraction: UnsavedInfraction) {
 
 export async function addInfractionToPost(
   threadId: Snowflake,
-  infraction: UnsavedInfraction
+  infractionId: Snowflake
 ) {
-  //TODO: lookup the post and add the infraction.
-}
-
-async function createThread(infraction: UnsavedInfraction) {
-  const forum = await getInfractionForum(infraction.guildId);
-  const moderatorUser = await client.users.fetch(infraction.moderator.id);
-  const targetUser = await client.users.fetch(infraction.target.id);
-
-  const { emoji, pastTenseVerb } = getPunishmentUIElements(
-    infraction.punishment
-  );
-
-  const thread = await forum.threads.create({
-    name: createPostName(infraction.punishment, targetUser, moderatorUser),
-    message: {
-      embeds: [
-        new EmbedBuilder()
-          .setAuthor({
-            name: `${moderatorUser.tag} (ID ${moderatorUser.id})`,
-            iconURL:
-              moderatorUser.avatarURL({ forceStatic: true, size: 16 }) ??
-              void 0,
-          })
-          .setThumbnail(targetUser.avatarURL({ size: 128 }))
-          .setDescription(
-            `${emoji} **${pastTenseVerb}** ${targetUser.tag} (ID \`${targetUser.id}\`)` +
-              `:page_facing_up: **Reason:** ${infraction.reason}`
-          )
-          .setFooter({
-            text: `ID: ${infraction.id}${
-              typeof infraction.duration !== "undefined"
-                ? `| Duration: ${ms(infraction.duration, { long: true })}`
-                : ""
-            }`,
-          }),
-      ],
-      components: [],
-    },
-    appliedTags: [getForumTagIdByPunishment(forum, infraction.punishment)],
-  });
-
-  return thread;
-}
-
-function createPostName(
-  punishment: Punishment,
-  targetUser: User,
-  moderatorUser: User
-): string {
-  const { pastTenseVerb } = getPunishmentUIElements(punishment);
-
-  let postName = `${targetUser.tag} (${
-    targetUser.id
-  }) was ${pastTenseVerb.toLowerCase()}`;
-  if (typeof moderatorUser !== "undefined") {
-    postName += ` by ${moderatorUser.tag} (${moderatorUser.id})`;
-  }
-
-  return postName;
+  await posts
+    .createQueryBuilder()
+    .relation("infractions")
+    .of(threadId)
+    .add(infractionId);
 }

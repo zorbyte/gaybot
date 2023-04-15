@@ -1,41 +1,40 @@
+import { DurationFormatter } from "@sapphire/time-utilities";
 import {
   ChannelType,
   Client,
+  EmbedBuilder,
   ForumChannel,
   GuildForumTagData,
   Snowflake,
+  User,
 } from "discord.js";
 import { Container } from "typedi";
-import { Column, DataSource, Entity, PrimaryColumn } from "typeorm";
 
-import { Punishment, PUNISHMENT_EMOJIS } from "../punishment.js";
+import { getModerationConfig } from "../config.js";
+import { UnsavedInfraction } from "../infractions/infraction.js";
+import {
+  getPunishmentUIElements,
+  Punishment,
+  PUNISHMENT_EMOJIS,
+} from "../punishment.js";
 
 import { InfractionForumErrors } from "./errors.js";
-
-@Entity()
-export class InfractionForum {
-  @PrimaryColumn()
-  guildId!: Snowflake;
-
-  @Column()
-  forumId!: Snowflake;
-}
-
-const source = Container.get(DataSource);
-const forums = source.getRepository(InfractionForum);
 
 const client = Container.get(Client);
 
 export async function getInfractionForum(guildId: Snowflake) {
-  const config = await forums.findOneBy({ guildId });
+  const config = await getModerationConfig(guildId);
 
-  if (config === null) {
+  if (typeof config?.infractionForumId === "undefined") {
     throw new InfractionForumErrors.NoChannelConfigured(guildId);
   }
 
-  const channel = await client.channels.fetch(config.forumId);
+  const channel = await client.channels.fetch(config.infractionForumId);
   if (channel === null) {
-    throw new InfractionForumErrors.ChannelNotFound(guildId, config.forumId);
+    throw new InfractionForumErrors.ChannelNotFound(
+      guildId,
+      config.infractionForumId
+    );
   }
 
   const guildChannel = await channel.fetch();
@@ -112,4 +111,64 @@ export function getForumTagIdByPunishment(
   }
 
   return tag;
+}
+
+const durationFormatter = new DurationFormatter();
+
+export async function createThread(infraction: UnsavedInfraction) {
+  const forum = await getInfractionForum(infraction.guildId);
+  const moderatorUser = await client.users.fetch(infraction.moderator.id);
+  const targetUser = await client.users.fetch(infraction.target.id);
+
+  const { emoji, pastTenseVerb } = getPunishmentUIElements(
+    infraction.punishment
+  );
+
+  const thread = await forum.threads.create({
+    name: createPostName(infraction.punishment, targetUser, moderatorUser),
+    message: {
+      embeds: [
+        new EmbedBuilder()
+          .setAuthor({
+            name: `${moderatorUser.tag} (ID ${moderatorUser.id})`,
+            iconURL:
+              moderatorUser.avatarURL({ forceStatic: true, size: 16 }) ??
+              void 0,
+          })
+          .setThumbnail(targetUser.avatarURL({ size: 128 }))
+          .setDescription(
+            `${emoji} **${pastTenseVerb}** ${targetUser.tag} (ID \`${targetUser.id}\`)` +
+              `:page_facing_up: **Reason:** ${infraction.reason}`
+          )
+          .setFooter({
+            text: `ID: ${infraction.id}${
+              typeof infraction.duration !== "undefined"
+                ? `| Duration: ${durationFormatter.format(infraction.duration)}`
+                : ""
+            }`,
+          }),
+      ],
+      components: [],
+    },
+    appliedTags: [getForumTagIdByPunishment(forum, infraction.punishment)],
+  });
+
+  return thread;
+}
+
+function createPostName(
+  punishment: Punishment,
+  targetUser: User,
+  moderatorUser: User
+): string {
+  const { pastTenseVerb } = getPunishmentUIElements(punishment);
+
+  let postName = `${targetUser.tag} (${
+    targetUser.id
+  }) was ${pastTenseVerb.toLowerCase()}`;
+  if (typeof moderatorUser !== "undefined") {
+    postName += ` by ${moderatorUser.tag} (${moderatorUser.id})`;
+  }
+
+  return postName;
 }

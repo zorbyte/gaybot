@@ -7,7 +7,7 @@ export namespace InfractionForumErrors {
   export const NoChannelConfigured = createGaybotError(
     Error,
     (guildId: Snowflake) =>
-      `No infractions forum configured for guild (\`${guildId}\`)`
+      `No infractions forum configured for guild (\`${guildId}\`).`
   );
 
   export const ChannelNotFound = createGaybotError(
@@ -25,6 +25,12 @@ export namespace InfractionForumErrors {
   export const TagNotFound = createGaybotError(
     Error,
     (forumId: Snowflake, punishment: Punishment) =>
-      `Tag for punishment (\`${punishment}\`) not found in forum (\`${forumId}\`)`
+      `Tag for punishment (\`${punishment}\`) not found in forum (\`${forumId}\`).`
+  );
+
+  export const PostNotInDatabase = createGaybotError(
+    Error,
+    (threadId: Snowflake) =>
+      `Could not find forum post (\`${threadId}\`) in the database.`
   );
 }
